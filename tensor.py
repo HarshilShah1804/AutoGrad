@@ -17,7 +17,7 @@ class Tensor:
             result = Tensor(self.data + other.data, previous=[self, other], require_grad=self.require_grad or other.require_grad)
         
             def grad_fn(grad):
-                if self.reqiure_grad:
+                if self.require_grad:
                     self.backward(grad)
                 if other.require_grad:
                     other.backward(grad)
@@ -42,6 +42,14 @@ class Tensor:
                     self.backward(grad * other.data)
                 if other.require_grad:
                     other.backward(grad * self.data)
+            result.grad_fn = grad_fn  
+            return result
+        else:
+            result = Tensor(self.data * other, previous=[self], require_grad=self.require_grad)
+            def grad_fn(grad):
+                if self.require_grad:
+                    self.backward(grad * other)
+            result.grad_fn = grad_fn
             return result
     
     def __rmul__(self, other):
@@ -50,6 +58,42 @@ class Tensor:
             return result
         else:
             result = Tensor(other * self.data, require_grad=self.require_grad)
+            return result
+        
+    def __sub__(self, other):
+        if isinstance(other, Tensor):
+            result = Tensor(self.data - other.data, previous=[self, other], require_grad=self.require_grad or other.require_grad)
+            def grad_fn(grad):
+                if self.require_grad:
+                    self.backward(grad)
+                if other.require_grad:
+                    other.backward(-grad)
+            result.grad_fn = grad_fn
+            return result
+        else:
+            result = Tensor(self.data - other, previous=[self], require_grad=self.require_grad)
+            def grad_fn(grad):
+                if self.require_grad:
+                    self.backward(grad)
+            result.grad_fn = grad_fn
+            return result
+
+    def __rsub__(self, other):
+        if isinstance(other, Tensor):
+            result = Tensor(other.data - self.data, previous=[other, self], require_grad=self.require_grad or other.require_grad)
+            def grad_fn(grad):
+                if other.require_grad:
+                    other.backward(grad)
+                if self.require_grad:
+                    self.backward(-grad)
+            result.grad_fn = grad_fn
+            return result
+        else:
+            result = Tensor(other - self.data, previous=[self], require_grad=self.require_grad)
+            def grad_fn(grad):
+                if self.require_grad:
+                    self.backward(-grad)
+            result.grad_fn = grad_fn
             return result
         
     def __matmul__(self, other):
@@ -71,8 +115,17 @@ class Tensor:
             raise ValueError(f"require_grad is False, cannot call backward")
         if grad is None:
             grad = np.ones_like(self.data)
-        self.grad += grad
+        if self.grad is None:
+            self.grad = grad
+        else:
+            self.grad += grad
         if self.grad_fn is not None:
             self.grad_fn(grad)
-    
-        
+
+    def sum(self, axis=None):
+        result = Tensor(np.sum(self.data, axis=axis), previous=[self], require_grad=self.require_grad)
+        def grad_fn(grad):
+            if self.require_grad:
+                self.backward(np.ones_like(self.data) * grad)
+        result.grad_fn = grad_fn
+        return result
