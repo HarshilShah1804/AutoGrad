@@ -27,10 +27,6 @@ class Linear:
         return x @ self.weights + self.bias
     
     def backward(self):
-        # Placeholder for backward pass
-        pass
+        self.weights.backward()
+        self.bias.backward()
 
-l = Linear(3, 2)
-print(l)
-data = np.random.randn(5, 3)
-print(l.forward(data))
