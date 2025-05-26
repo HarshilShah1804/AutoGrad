@@ -77,9 +77,16 @@ class Conv2d:
         # Perform matrix multiplication and add bias
         out = np.tensordot(patches, weights_reshaped, axes=([3], [0])) + self.bias.data
         out = out.transpose(0, 3, 1, 2)  # Rearrange dimensions to match output shape
-        return Tensor(out, require_grad=True)
+        self.input = x
+        self.output = Tensor(out, require_grad=True)
+        return self.output
     
     def backward(self):
+        if self.weights.grad is not None and self.input is not None:
+            # Compute gradient with respect to input using transposed convolution
+            flipped_weights = np.flip(self.weights.data, axis=(2, 3))
+            input_grad = np.tensordot(self.output.grad, flipped_weights, axes=([1], [0]))
+            self.input.backward(input_grad)
         self.weights.backward()
         self.bias.backward()
         
